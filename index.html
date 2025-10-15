@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>スペース連打カウントゲーム — 10秒チャレンジ</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#111827;
+      --accent:#60a5fa;
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.03);
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","ヒラギノ角ゴ ProN",Meiryo,Arial;
+      background: linear-gradient(180deg,var(--bg) 0%, #071029 100%);
+      color: #e6eef8;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .card{
+      width:min(720px,96vw);
+      background:linear-gradient(180deg,var(--card), #0b1220 120%);
+      border-radius:12px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      padding:28px;
+    }
+
+    h1{
+      margin:0 0 6px 0;
+      font-size:20px;
+      letter-spacing:0.2px;
+    }
+    p.lead{
+      margin:0 0 18px 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .status{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+
+    .meter{
+      background:var(--glass);
+      padding:14px 18px;
+      border-radius:10px;
+      min-width:140px;
+      text-align:center;
+    }
+    .meter .label{font-size:12px;color:var(--muted);}
+    .meter .value{font-size:28px;font-weight:700;margin-top:6px;}
+
+    .controls{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+    button.btn{
+      all:unset;
+      cursor:pointer;
+      padding:10px 16px;
+      border-radius:10px;
+      background:linear-gradient(180deg,var(--accent), #1e90ff);
+      color:#06203a;
+      font-weight:700;
+      box-shadow: 0 6px 18px rgba(32,124,229,0.18);
+    }
+    button.ghost{
+      all:unset;
+      cursor:pointer;
+      padding:10px 14px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.06);
+      background:transparent;
+      color:var(--muted);
+    }
+
+    .big-button{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+      width:100%;
+      height:140px;
+      border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.03);
+      font-size:40px;
+      font-weight:800;
+      letter-spacing:2px;
+      color:#dcecff;
+      margin-bottom:12px;
+      transition:transform 80ms ease, box-shadow 80ms ease;
+    }
+    .big-button:active,
+    .big-button.active{
+      transform:scale(0.98);
+      box-shadow: inset 0 6px 18px rgba(0,0,0,0.35);
+    }
+
+    .flash {
+      position:absolute;
+      inset:0;
+      border-radius:10px;
+      pointer-events:none;
+      opacity:0;
+      transition:opacity 140ms ease;
+      background: radial-gradient(circle at 50% 30%, rgba(96,165,250,0.12), transparent 30%);
+    }
+
+    .meta{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      margin-top:10px;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    footer{
+      margin-top:14px;
+      color:var(--muted);
+      font-size:12px;
+      text-align:right;
+    }
+
+    @media (max-width:520px){
+      .status{flex-direction:column; align-items:stretch;}
+      .meter{min-width:unset;}
+      .big-button{height:120px;font-size:34px;}
+    }
+  </style>
+</head>
+<body>
+  <div class="card" role="application" aria-labelledby="title">
+    <h1 id="title">スペース連打カウントゲーム — 10秒チャレンジ</h1>
+    <p class="lead">スタートしてから10秒間、スペースキー（または下のボタン）を連打して何回押せるかを競おう！</p>
+
+    <div class="status" aria-hidden="false">
+      <div class="meter" aria-live="polite">
+        <div class="label">残り時間</div>
+        <div class="value" id="time">10.00s</div>
+      </div>
+
+      <div class="meter" aria-live="polite">
+        <div class="label">カウント</div>
+        <div class="value" id="count">0</div>
+      </div>
+
+      <div class="meter" aria-live="polite">
+        <div class="label">ハイスコア</div>
+        <div class="value" id="high">0</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" class="btn" aria-pressed="false">Start</button>
+      <button id="resetBtn" class="ghost">リセット</button>
+      <div style="flex:1"></div>
+      <div style="color:var(--muted); font-size:13px;">スペースでカウント</div>
+    </div>
+
+    <div id="pressArea" class="big-button" role="button" aria-pressed="false" tabindex="0">
+      TAP or SPACE
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="meta">
+      <div>※押しっぱなしではカウントされません</div>
+      <div>Startを押してから開始</div>
+    </div>
+
+    <footer>作成：スペース10秒チャレンジ</footer>
+  </div>
+
+  <script>
+    (function(){
+      const startBtn = document.getElementById('startBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const timeEl = document.getElementById('time');
+      const countEl = document.getElementById('count');
+      const highEl = document.getElementById('high');
+      const pressArea = document.getElementById('pressArea');
+      const flash = document.getElementById('flash');
+
+      const DURATION = 10000; // 10秒
+      let running = false;
+      let startAt = 0;
+      let elapsed = 0;
+      let count = 0;
+      let rafId = null;
+      let high = Number(localStorage.getItem('space10_high') || 0);
+
+      highEl.textContent = high;
+
+      function formatTime(ms){ return (ms/1000).toFixed(2) + 's'; }
+
+      function updateDisplay(){
+        const remaining = Math.max(0, DURATION - elapsed);
+        timeEl.textContent = formatTime(remaining);
+        countEl.textContent = count;
+        highEl.textContent = high;
+      }
+
+      function step(){
+        const now = performance.now();
+        elapsed = now - startAt;
+        if (elapsed >= DURATION) {
+          running = false;
+          elapsed = DURATION;
+          finishRound();
+        } else {
+          updateDisplay();
+          rafId = requestAnimationFrame(step);
+        }
+      }
+
+      function startRound(){
+        if (running) return;
+        running = true;
+        count = 0;
+        elapsed = 0;
+        startAt = performance.now();
+        startBtn.textContent = 'Running...';
+        startBtn.setAttribute('aria-pressed','true');
+        updateDisplay();
+        rafId = requestAnimationFrame(step);
+      }
+
+      function finishRound(){
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        running = false;
+        startBtn.textContent = 'Start';
+        startBtn.setAttribute('aria-pressed','false');
+        updateDisplay();
+        if (count > high) {
+          high = count;
+          highEl.textContent = high;
+          localStorage.setItem('space10_high', String(high));
+          pressArea.animate([{transform:'scale(1)'},{transform:'scale(1.05)'},{transform:'scale(1)'}], {duration:400});
+        }
+      }
+
+      function resetAll(){
+        running = false;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        count = 0; elapsed = 0;
+        timeEl.textContent = formatTime(DURATION);
+        countEl.textContent = '0';
+        startBtn.textContent = 'Start';
+        startBtn.setAttribute('aria-pressed','false');
+      }
+
+      // 押しっぱなし無効（keydownのrepeatを無視）
+      function handleKeydown(e){
+        if (!running) return;
+        if (e.code === 'Space' && !e.repeat) {
+          e.preventDefault();
+          registerPress();
+        }
+      }
+
+      function registerPress(){
+        count += 1;
+        flash.style.opacity = '1';
+        clearTimeout(flash._t);
+        flash._t = setTimeout(()=> flash.style.opacity = '0', 80);
+        pressArea.classList.add('active');
+        clearTimeout(pressArea._t);
+        pressArea._t = setTimeout(()=> pressArea.classList.remove('active'), 90);
+        updateDisplay();
+      }
+
+      // モバイル対応（ゲーム中のみ反応）
+      pressArea.addEventListener('pointerdown', (ev)=>{
+        ev.preventDefault();
+        if (running) registerPress();
+      });
+
+      // ボタン
+      startBtn.addEventListener('click', ()=>{ if (!running) startRound(); });
+      resetBtn.addEventListener('click', ()=> resetAll());
+      window.addEventListener('keydown', handleKeydown, {passive:false});
+
+      // 初期表示
+      timeEl.textContent = formatTime(DURATION);
+      countEl.textContent = '0';
+    })();
+  </script>
+</body>
+</html>
+
